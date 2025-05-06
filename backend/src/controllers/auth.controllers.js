@@ -8,6 +8,13 @@ export const register = async (req, res) => {
 
     const { email, password, name } = req.body;
 
+    if (!name || !email || !password) {
+        return res.status(400).json({
+            message: "All Fiels are Required"
+        })
+    }
+
+
     try {
 
         const existingUser = await db.user.findUnique({
@@ -64,6 +71,61 @@ export const register = async (req, res) => {
 }
 
 export const login = async (req, res) => {
+    const { email, password } = req.body
+
+    try {
+        const user = await db.user.findUnique({
+            where: {
+                email
+            }
+        })
+
+        if (!user) {
+            return res.status(401).json({
+                error: "user not found !! please register first !"
+            })
+        }
+
+
+        const isMatch = await bcrypt.compare(password, user.password);
+
+        if (!isMatch) {
+            return res.status(401).json({
+                error: "Invalid credentials"
+            })
+        }
+
+        const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET)
+
+        res.cookie("jwt", token, {
+            httpOnly: true,
+            sameSite: 'strict',
+            secure: process.env.NODE_EW !== "development",
+            maxAge: 1000 * 60 * 60 * 24 * 7
+        })
+
+        res.status(201).json({
+            message: "User Logged in Successfully",
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                role: user.role,
+                image: user.image
+            }
+        })
+
+
+
+
+    } catch (error) {
+        console.error("Error creating user: ", error);
+        res.status(500).json({
+            error: "Logged in failed !"
+        })
+
+    }
+
 
 }
 
